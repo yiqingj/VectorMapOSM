@@ -9,4 +9,6 @@ if __name__ == '__main__':
     config.scan('views')
     app = config.make_wsgi_app()
     server = make_server('0.0.0.0', 8080, app)
+    print 'starting server on 8080'
     server.serve_forever()
+    print 'server is up.'
