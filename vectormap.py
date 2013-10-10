@@ -91,8 +91,14 @@ class TileProvider:
         return
 
     def highwayToPBRoadType(self,highway):
-        if highway == 'highway':
+        if highway.startswith('motorway'):
             return common_pb2.RT_HIGHWAY
+        elif highway.startswith('primary'):
+            return common_pb2.RT_HIGHWAY
+        elif highway.startswith('secondary'):
+            return common_pb2.RT_ARTERIAL
+        elif highway.startswith('trunk'):
+            return common_pb2.RT_ARTERIAL
         elif highway == 'residential':
             return common_pb2.RT_LOCAL
         elif highway == 'pedestrian':
@@ -101,7 +107,7 @@ class TileProvider:
             return common_pb2.RT_TERMINAL
         elif highway == 'footway':
             return common_pb2.RT_PEDESTRIAN
-        elif highway == 'tertiary':
+        elif highway.startswith('tertiary'):
             return common_pb2.RT_LOCAL
         elif highway == 'path':
             return common_pb2.RT_NON_NAVIGABLE
