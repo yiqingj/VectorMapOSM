@@ -81,13 +81,13 @@ class TileProvider:
         for i in range(len(coordinates)):
             ll = coordinates[i]
             if i == 0:
-                lat = lastLat = ll[0]
-                lon = lastLon = ll[1]
+                lat = lastLat = ll[1]
+                lon = lastLon = ll[0]
             else:
-                lat = ll[0]-lastLat
-                lon = ll[1]- lastLon
-            polyline.latlon.append(int(lat*100000))
-            polyline.latlon.append(int(lon*100000))
+                lat = ll[1]-lastLat
+                lon = ll[0]- lastLon
+            polyline.latlon.append(int(lat*1000000))
+            polyline.latlon.append(int(lon*1000000))
         return
 
     def highwayToPBRoadType(self,highway):
@@ -116,18 +116,22 @@ class TileProvider:
             return common_pb2.RT_UNKNOWN
 
     def handleFeature(self, pfTile, feature):
+        #print feature.to_geojson()
         geoPath = json.loads(feature.geometries().to_geojson())
         type = geoPath['type']
         name = feature.__getitem__('name')
         highway = feature.__getitem__('highway')
         if highway is not None and type == 'LineString':  # Road feature?
+            roadType = self.highwayToPBRoadType(highway)
+            if roadType == common_pb2.RT_UNKNOWN:
+                return
             rf = pfTile.rf.add()
+            rf.featureID = feature.id()
+            rf.roadType = roadType
+            rf.roadSubType = vector_pb2.RST_COMMON
             self.coordToPBPolyline(geoPath['coordinates'], rf.lines.add())
             if name is not None:
-                fn = rf.roadNames.add()
-                fn.name = name
-            if highway is not None:
-                rf.roadType = self.highwayToPBRoadType(highway)
+                rf.roadName = name
         elif type == 'LineString':  # Line feature?
             pass
         elif type == 'Polygon':  # Area feature?
@@ -137,7 +141,7 @@ class TileProvider:
         else:
             print 'unknown type: ', type
 
-    def getTile(self, x, y, zoom):
+    def getVectorTile(self, x, y, zoom):
         bbox = self.bbox(x, y, zoom)
         query = mapnik.Query(bbox)
         query.add_property_name('name')
@@ -150,7 +154,21 @@ class TileProvider:
     def getTileByLatLon(self, ll, zoom):
         tile = self.tileProj.fromLLtoTileId(ll, zoom)
         print tile
-        return self.getTile(tile[0], tile[1], tile[2])
+        return self.getVectorTile(tile[0], tile[1], tile[2])
+    def getImageTile(self, x, y, zoom):
+        bbox = self.bbox(x, y, zoom)
+        render_size = 256
+        self.map.resize(render_size, render_size)
+        self.map.zoom_to_box(bbox)
+        if(self.map.buffer_size < 128):
+            self.map.buffer_size = 128
+        # Render image with default Agg renderer
+        im = mapnik.Image(render_size, render_size)
+        mapnik.render(self.map, im)
+        im.save(str(x)+'-'+str(y)+'-'+str(zoom)+'.png', 'png256')
+        return im
+
+# end of Class TileProvider
 
 if __name__ == '__main__':
 

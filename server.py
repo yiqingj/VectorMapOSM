@@ -13,6 +13,9 @@ map = mapnik.Map(256,256)
 mapnik.load_map(map, 'osm-sunnyvale.xml')
 
 def getTile(request):
+    """
+    main method. serve Telenav vector tile!
+    """
     provider = vectormap.TileProvider(map)
     zoom = int(request.matchdict['zoom'])
     x = int(request.matchdict['x'])
@@ -22,10 +25,10 @@ def getTile(request):
     except KeyError:
         format = 'pb'
     print 'GetTile: ', x, y , zoom
-    pbTile = provider.getTile(x,y,zoom)
+    pbTile = provider.getVectorTile(x,y,zoom)
     if format == "pb":
         return Response(
-            content_type="tapplication/x-protobuf",
+            content_type="application/x-protobuf",
             body=pbTile.SerializeToString()
         )
     elif format == 'str':
@@ -53,9 +56,6 @@ def refVectorTile(request):
     get reference vector tile data from existing product
     this is just providing a easy way to compare the difference.
     """
-    zoom = int(request.matchdict['zoom'])
-    x = int(request.matchdict['x'])
-    y = int(request.matchdict['y'])
     conn = httplib.HTTPConnection("hqd-vectortilefscdn.telenav.com")
     path = "/maps/v3/VectorTile/TomTom/NA/13M3c/%(zoom)s/%(y)s/%(x)s" % request.matchdict
     conn.request("GET", path)
@@ -67,14 +67,27 @@ def refVectorTile(request):
         content_type="text/plain",
         body=pfTile.__str__()
     )
+def getImageTile(request):
+    provider = vectormap.TileProvider(map)
+    zoom = int(request.matchdict['zoom'])
+    x = int(request.matchdict['x'])
+    y = int(request.matchdict['y'])
+    image = provider.getImageTile(x, y ,zoom)
+    return Response(
+        content_type='image/png',
+        body=image.tostring()
+    )
+
 
 
 if __name__ == '__main__':
     config = Configurator()
     config.add_route('vector_tile', '/maps/v3/VectorTile/{dataSet}/NA/{dataVersion}/{zoom}/{y}/{x}')
+    config.add_route('image_tile', '/maps/v3/image/{dataSet}/NA/{dataVersion}/{zoom}/{y}/{x}')
     config.add_route('ref_vector_tile', '/maps/v3/VectorTileRef/{dataSet}/NA/{dataVersion}/{zoom}/{y}/{x}')
     config.add_route('tile_finder', '/{zoom}/{latlon}')
     config.add_view(getTile, route_name='vector_tile')
+    config.add_view(getImageTile, route_name='image_tile')
     config.add_view(refVectorTile, route_name='ref_vector_tile')
     config.add_view(tileFinder, route_name='tile_finder')
     app = config.make_wsgi_app()
