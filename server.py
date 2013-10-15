@@ -10,7 +10,7 @@ import httplib
 from map import vector_pb2
 
 map = mapnik.Map(256,256)
-mapnik.load_map(map, 'osm-sunnyvale.xml')
+mapnik.load_map(map, 'osm.xml')
 
 def getTile(request):
     """
